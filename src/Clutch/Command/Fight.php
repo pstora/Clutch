@@ -13,6 +13,8 @@ use Clutch\Competition\RoundInterface;
 
 class Fight extends Command
 {
+    protected $competitionResult = array();
+
     protected function configure()
     {
         $this
@@ -28,89 +30,118 @@ class Fight extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->output = $output;
+
         $competition = $input->getArgument('competition');
 
         $competition = explode('/', $competition);
         $competitionClass = $competition[0] . '\\Competitions\\' . $competition[1] . '\\Competition';
         $competition = new $competitionClass;
 
-        $output->writeln('Welcome to the <info>' . $competition . '</info> competition !');
+        $this->output->writeln('Welcome to the <info>' . $competition . '</info> competition !');
 
-        $output->writeln('Here are the competitors who will fight each others:');
+        $this->output->writeln('Here are the competitors who will fight each others:');
         foreach ($competition->getFighters() as $fighter) {
-            $output->writeln('     - <info>' . $fighter . '</info>');
+            $this->output->writeln('     - <info>' . $fighter . '</info>');
         }
 
-        $output->writeln('');
+        $this->output->writeln('');
 
         $roundNumber = 0;
-        $iteration = $competition->getIteration();
-        $competitionResult = array();
         foreach ($competition->getRounds() as $round) {
-            $competitionResult[$round->getName()] = array();
             $roundNumber++;
-            $output->writeln('✭ <comment>Round ' . $roundNumber . '</comment>: <info>' . $round . '</info> - Ready ? Fight !');
+            $this->output->writeln('✭ <comment>Round ' . $roundNumber . '</comment>: <info>' . $round . '</info> - Ready ? Fight !');
 
             foreach ($competition->getFighters() as $fighter) {
-                $results = array();
+                $results = $this->getFightResults($competition, $round, $fighter);
 
-                $fightFile = 'php ' . $this->generateFight($competition, $round, $fighter);
-
-                if (OutputInterface::VERBOSITY_VERBOSE === $output->getVerbosity()) {
-                    $output->write($fighter->getName());
-                }
-                for ($i = 0; $i < $iteration; $i++) {
-                    if (OutputInterface::VERBOSITY_VERBOSE === $output->getVerbosity()) {
-                        $output->write('.');
-                    }
-
-                    $outputResult = $this->getResult($fightFile);
-
-                    foreach ($outputResult as $outputData) {
-                        $instrumentData = explode(":", $outputData);
-                        $results[$instrumentData[0]][$i] = $instrumentData[1];
-                        unset($instrumentData);
-                    }
-                    unset($outputResult);
-                }
-                if (OutputInterface::VERBOSITY_VERBOSE === $output->getVerbosity()) {
-                    $output->writeln('');
-                }
-
-                foreach ($results as $instrument => $result) {
-                    $competitionResult[$round->getName()][$instrument]['value'][$fighter->getName()] = array_sum($result)/count($result);
-                    $competitionResult[$round->getName()][$instrument]['±'][$fighter->getName()] = ((max($result) - min($result))/2);
-                }
+                $this->updateCompetitionResult($results, $round, $fighter);
             }
-            $this->outputRoundResult($output, $competitionResult[$round->getName()]);
-            $output->writeln('');
+            $this->outputRoundResult($round);
+            $this->output->writeln('');
         }
 
-        $output->writeln('Thank you for watching us !');
+        $this->output->writeln('Thank you for watching us !');
     }
 
-    private function outputRoundResult($output, $roundResult)
+    private function getFightResults(CompetitionInterface $competition, RoundInterface $round, FighterInterface $fighter)
     {
-        $output->writeln('     And the winner is...');
+        $results = array();
+
+        $iteration = $competition->getIteration();
+
+        $fightFile = 'php ' . $this->generateFight($competition, $round, $fighter);
+
+        if (OutputInterface::VERBOSITY_VERBOSE === $this->output->getVerbosity()) {
+            $this->output->write($fighter->getName());
+        }
+        for ($i = 0; $i < $iteration; $i++) {
+            if (OutputInterface::VERBOSITY_VERBOSE === $this->output->getVerbosity()) {
+                $this->output->write('.');
+            }
+
+            $outputResult = $this->getFightProcessResult($fightFile);
+
+            $results = $this->addResults($results, $i, $outputResult);
+
+            unset($outputResult);
+        }
+        if (OutputInterface::VERBOSITY_VERBOSE === $this->output->getVerbosity()) {
+            $this->output->writeln('');
+        }
+
+        return $results;
+    }
+
+    private function addResults($results, $iteration, $outputResult)
+    {
+        foreach ($outputResult as $outputData) {
+            $instrumentData = explode(":", $outputData);
+            $results[$instrumentData[0]][$iteration] = $instrumentData[1];
+        }
+
+        return $results;
+    }
+
+    private function updateCompetitionResult($results, RoundInterface $round, FighterInterface $fighter)
+    {
+        foreach ($results as $instrument => $result) {
+            $this->competitionResult[$round->getName()][$instrument]['value'][$fighter->getName()] = array_sum($result)/count($result);
+            $this->competitionResult[$round->getName()][$instrument]['±'][$fighter->getName()] = ((max($result) - min($result))/2);
+        }
+    }
+
+    private function outputRoundResult(RoundInterface $round)
+    {
+        $roundResult = $this->competitionResult[$round->getName()];
+        $this->output->writeln('     And the winner is...');
         foreach ($roundResult as $instrument => $data) {
-            $output->writeln('     <info>' . $instrument . '</info>:');
+            $this->output->writeln('     <info>' . $instrument . '</info>:');
             $ranking = $data['value'];
             asort($ranking);
             $i = 0;
             foreach ($ranking as $fighter => $score) {
                 $i++;
-                $output->writeln('          ' . $i . '. <info>' . $fighter . '</info> with <comment>' . $score . '</comment> (±' . $data['±'][$fighter] . ')');
+                $this->output->writeln('          ' . $i . '. <info>' . $fighter . '</info> with <comment>' . $score . '</comment> (±' . $data['±'][$fighter] . ')');
             }
         }
     }
 
     private function generateFight(CompetitionInterface $competition, RoundInterface $round, FighterInterface $fighter)
     {
-        $competitionClass = get_class($competition);
-        $roundClass = get_class($round);
-        $fighterClass = get_class($fighter);
+        $filename = getcwd() . '/competitions/cache/' . $competition->getName() . '_' . $round->getName() . 'Round_' . $fighter->getName() . 'Fighter.php';
 
-        $content = <<<EOF
+        if (file_exists($filename)) {
+            unlink($filename);
+        }
+        file_put_contents($filename, $this->getFightContent(get_class($competition), get_class($round), get_class($fighter)));
+
+        return $filename;
+    }
+
+    private function getFightContent($competitionClass, $roundClass, $fighterClass)
+    {
+        return <<<EOF
 <?php
 
 require(__DIR__.'/../bootstrap.php');
@@ -134,18 +165,9 @@ foreach (\$competition->getInstruments() as \$instrument) {
     print \$instrument->getName() . ':' . \$result[\$instrument->getName()] . "\\n";
 }
 EOF;
-
-        $filename = getcwd() . '/competitions/cache/' . $competition->getName() . '_' . $round->getName() . 'Round_' . $fighter->getName() . 'Fighter.php';
-
-        if (file_exists($filename)) {
-            unlink($filename);
-        }
-        file_put_contents($filename, $content);
-
-        return $filename;
     }
 
-    private function getResult($fightFile)
+    private function getFightProcessResult($fightFile)
     {
         $process = new Process($fightFile);
 
