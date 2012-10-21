@@ -165,7 +165,7 @@ class ArrayFighter extends AbstractFighter
     {
         $fighter = array();
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $fighter[$i] = $i;
         }
 
@@ -176,7 +176,7 @@ class ArrayFighter extends AbstractFighter
     {
         $fighter = array();
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $fighter[$i] = new \DateTime();
         }
 
@@ -187,7 +187,7 @@ class ArrayFighter extends AbstractFighter
     {
         $fighter = array();
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $fighter[$i] = 'Chuck Norris';
         }
 
@@ -221,7 +221,7 @@ class ArrayObjectFighter extends AbstractFighter
     {
         $fighter = new \ArrayObject;
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $fighter[$i] = $i;
         }
 
@@ -232,7 +232,7 @@ class ArrayObjectFighter extends AbstractFighter
     {
         $fighter = new \ArrayObject;
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $fighter[$i] = new \DateTime();
         }
 
@@ -243,7 +243,7 @@ class ArrayObjectFighter extends AbstractFighter
     {
         $fighter = new \ArrayObject;
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $fighter[$i] = 'Chuck Norris';
         }
 
