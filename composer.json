@@ -1,0 +1,23 @@
+{
+    "name": "free-agent/clutch",
+    "description": "Clutch can make fight several PHP code to know which is the best in under certain conditions.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "symfony/process": "v2.1.2",
+        "symfony/console": "v2.1.2"
+    },
+    "authors": [
+        {
+            "name": "Jérémy Romey",
+            "email": "jeremy@free-agent.fr"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/jeremyFreeAgent/clutch/issues"
+    },
+    "autoload": {
+        "psr-0": { "Clutch": "src/" }
+    },
+    "bin": ["bin/clutch"]
+}
